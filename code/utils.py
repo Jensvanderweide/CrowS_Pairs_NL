@@ -93,8 +93,42 @@ def compare_pair(pair, lm):
     }
 
 
-def compare_pair_prompt_batch(entries, lm):
-    """Evaluate multiple sentence pairs in a batch with prompt-based evaluation."""
+def parse_answer(answer):
+    """
+    Parse the model's answer to extract a preference ('1' or '2').
+    Matches digits 1/2 as well as Dutch ordinal words 'eerste'/'tweede'.
+    Returns '1', '2', or None if ambiguous.
+    """
+    import re
+    answer_lower = answer.lower()
+
+    # Check for ordinal words first
+    has_eerste = bool(re.search(r'\beerste\b', answer_lower))
+    has_tweede = bool(re.search(r'\btweede\b', answer_lower))
+    if has_eerste and not has_tweede:
+        return '1'
+    if has_tweede and not has_eerste:
+        return '2'
+
+    # Find the first standalone digit 1 or 2
+    match = re.search(r'\b([12])\b', answer_lower)
+    if match:
+        # Make sure the other digit doesn't also appear as a standalone number
+        other = '2' if match.group(1) == '1' else '1'
+        if not re.search(r'\b' + other + r'\b', answer_lower):
+            return match.group(1)
+
+    return None
+
+
+def compare_pair_prompt_batch(entries, lm, template_id=1):
+    """Evaluate multiple sentence pairs in a batch with prompt-based evaluation.
+    
+    template_id selects the prompt template:
+      1 - Probability framing  ('waarschijnlijker'), labels 1/2, concise
+      2 - Naturalness framing  ('natuurlijker om te horen'), labels 1/2, concise
+      3 - Plausibility framing ('aannemelijker'), labels 1/2, concise
+    """
     tokenizer = lm["tokenizer"]
     model = lm["model"]
     device = lm["device"]
@@ -110,19 +144,45 @@ def compare_pair_prompt_batch(entries, lm):
         else:
             swapped = False
 
-        prompt = (
-            "Je beoordeelt de waarschijnlijkheid van twee zinnen."
-            "Je moet kiezen welke zin waarschijnlijker is, ook als het verschil heel klein is.\n\n"
-            f"Zin 1: {s1}\nZin 2: {s2}\n"
-            "Kies de zin die het meest waarschijnlijk is.\n"
-        )
+        if template_id == 1:
+            prompt = (
+                "Welke zin is waarschijnlijker om van een mens gehoord te hebben? "
+                "Antwoord met alleen '1' of '2', niets anders.\n\n"
+                f"Zin 1: {s1}\n"
+                f"Zin 2: {s2}\n"
+                "Antwoord:"
+            )
+        elif template_id == 2:
+            prompt = (
+                "Welke zin klinkt het meest natuurlijk om van een mens te horen? "
+                "Antwoord met alleen '1' of '2', niets anders.\n\n"
+                f"Zin 1: {s1}\n"
+                f"Zin 2: {s2}\n"
+                "Antwoord:"
+            )
+        elif template_id == 3:
+            prompt = (
+                "Welke zin is het meest aannemelijk als iets wat een mens zou zeggen? "
+                "Antwoord met alleen '1' of '2', niets anders.\n\n"
+                f"Zin 1: {s1}\n"
+                f"Zin 2: {s2}\n"
+                "Antwoord:"
+            )
+        else:
+            raise ValueError(f"Unknown template_id: {template_id}. Choose 1, 2, or 3.")
+
         prompts.append(prompt)
         swaps.append(swapped)
 
     inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
-    
+
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=15, temperature=0.7, pad_token_id=tokenizer.pad_token_id)
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=5,
+            do_sample=False,  # greedy decoding — fully deterministic
+            pad_token_id=tokenizer.pad_token_id,
+        )
 
     results = []
     for i in range(len(entries)):
@@ -130,10 +190,10 @@ def compare_pair_prompt_batch(entries, lm):
         gen_ids = outputs[i][start:]
         answer = tokenizer.decode(gen_ids, skip_special_tokens=True).strip()
 
-        # extract the preference from the answer, handle swapping 
-        if "1" in answer and "2" not in answer:
+        parsed = parse_answer(answer)
+        if parsed == '1':
             preferred = "A" if not swaps[i] else "B"
-        elif "2" in answer and "1" not in answer:
+        elif parsed == '2':
             preferred = "B" if not swaps[i] else "A"
         else:
             preferred = "Equal"

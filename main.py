@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--data_file", type=str, default="preprocessed_final.csv")  # Data file in the data folder
     parser.add_argument("--sample_size", type=int, default=None)
     parser.add_argument("--eval_mode", type=str, default="likelihood", choices=["likelihood", "prompt"])
+    parser.add_argument("--output_dir", type=str, default="experiment_results")
     args = parser.parse_args()
 
     set_seed(42)
@@ -41,7 +42,15 @@ def main():
     if args.eval_mode == "likelihood":
         evaluate_likelihood(lm, data, sample_size=args.sample_size, model_name=args.model_name)
     elif args.eval_mode == "prompt":
-        evaluate_prompt(lm, data, sample_size=args.sample_size, model_name=args.model_name)
+        _, template_scores, mean_score, std_score = evaluate_prompt(
+            lm, data, sample_size=args.sample_size, model_name=args.model_name, output_dir=args.output_dir
+        )
+        print("\n========== PROMPT EVALUATION RESULTS ==========")
+        for template_id, score in template_scores.items():
+            from code.eval_prompt import TEMPLATES
+            print(f"  T{template_id} ({TEMPLATES[template_id]}): {score}%")
+        print(f"  Mean stereotype score: {mean_score}%  (std: {std_score}%)")
+        print("================================================")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,16 @@
+{
+  "model":"mistral7b-instruct-v0.1",
+  "sample_size":null,
+  "templates":{
+    "1":"waarschijnlijker",
+    "2":"natuurlijker",
+    "3":"aannemelijker"
+  },
+  "stereotype_scores":{
+    "waarschijnlijker":51.2,
+    "natuurlijker":49.64,
+    "aannemelijker":48.8
+  },
+  "mean_stereotype_score":49.88,
+  "std_stereotype_score":0.99
+}

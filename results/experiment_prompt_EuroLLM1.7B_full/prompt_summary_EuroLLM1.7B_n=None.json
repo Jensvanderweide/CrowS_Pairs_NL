@@ -1,0 +1,16 @@
+{
+  "model":"EuroLLM1.7B",
+  "sample_size":null,
+  "templates":{
+    "1":"waarschijnlijker",
+    "2":"natuurlijker",
+    "3":"aannemelijker"
+  },
+  "stereotype_scores":{
+    "waarschijnlijker":50.36,
+    "natuurlijker":46.84,
+    "aannemelijker":47.14
+  },
+  "mean_stereotype_score":48.11,
+  "std_stereotype_score":1.59
+}

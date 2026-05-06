@@ -1,0 +1,16 @@
+{
+  "model":"GEITje-7B-ultra",
+  "sample_size":null,
+  "templates":{
+    "1":"waarschijnlijker",
+    "2":"natuurlijker",
+    "3":"aannemelijker"
+  },
+  "stereotype_scores":{
+    "waarschijnlijker":55.78,
+    "natuurlijker":53.61,
+    "aannemelijker":59.64
+  },
+  "mean_stereotype_score":56.34,
+  "std_stereotype_score":2.49
+}
